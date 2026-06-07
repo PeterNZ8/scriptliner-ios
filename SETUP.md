@@ -37,7 +37,17 @@ Open `Config.swift` and replace the URL:
 static let updateBaseURL = "https://yoursite.com/scriptliner/"
 ```
 
-### 5. Set your Apple Developer team
+### 5. Enable iCloud capability
+
+1. Click the top-level project → **Signing & Capabilities**
+2. Click **+ Capability** → add **iCloud**
+3. Under iCloud, tick **iCloud Documents**
+4. This adds the `com.apple.developer.ubiquity-kvstore-identifier` and document entitlements required for `FileManager.url(forUbiquityContainerIdentifier:)` to return a non-nil URL
+5. If prompted, select your Team so Xcode can provision the entitlement
+
+> Without this step the app still works — it silently falls back to saving `_session.json` in local Documents instead of iCloud Drive.
+
+### 6. Set your Apple Developer team
 
 1. Click the top-level project in the navigator → **Signing & Capabilities**
 2. Set your Team (requires a free or paid Apple Developer account)
