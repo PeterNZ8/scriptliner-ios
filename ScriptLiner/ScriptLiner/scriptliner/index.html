@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Script Liner">
+  <title>Script Liner</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --border: #0f3460;
+      --accent: #3498db;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --danger: #922b21;
+      --script-bg: #f8f5f0;
+      --script-text: #1a1a1a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    /* ── TOOLBAR ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      min-height: 52px;
+    }
+
+    .tb-group { display: flex; align-items: center; gap: 6px; }
+    .tb-spacer { flex: 1; }
+
+    #script-title {
+      font-size: 13px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+
+    #save-indicator {
+      font-size: 11px;
+      color: #2ecc71;
+      opacity: 0;
+      transition: opacity 0.4s;
+      white-space: nowrap;
+    }
+
+    /* ── MAIN ── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: 210px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: width 0.25s, opacity 0.25s;
+    }
+
+    #sidebar.sidebar-hidden {
+      width: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #sidebar-inner {
+      width: 210px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .sidebar-section {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    #slates-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+    }
+
+    .empty-msg {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1.7;
+      padding: 12px 4px;
+    }
+
+    .slate-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .slate-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .slate-name {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+      color: var(--text);
+    }
+
+    .cams-list { display: flex; flex-direction: column; gap: 3px; }
+
+    .cam-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.12s;
+    }
+
+    .cam-item:hover { background: rgba(255,255,255,0.08); }
+    .cam-item.cam-active { background: rgba(52,152,219,0.2); outline: 1px solid rgba(52,152,219,0.4); }
+
+    .slate-name-editable { cursor: pointer; border-bottom: 1px dashed rgba(255,255,255,0.3); }
+    .slate-name-editable:hover { border-bottom-color: rgba(255,255,255,0.7); }
+
+    .slate-name-input {
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      background: rgba(255,255,255,0.1); color: var(--text);
+      border: 1px solid var(--accent); border-radius: 3px;
+      padding: 1px 5px; width: 70px; outline: none;
+    }
+
+    .cam-swatch {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 28px; height: 18px; border-radius: 9px;
+      font-size: 9px; font-weight: 700; color: #fff;
+      padding: 0 5px; flex-shrink: 0; letter-spacing: 0.02em;
+    }
+    .cam-label { flex: 1; }
+    .cam-count { color: var(--text-dim); font-size: 11px; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 8px; }
+    .cam-del { opacity: 0; transition: opacity 0.15s; }
+    .cam-item:hover .cam-del { opacity: 1; }
+
+    /* Line type */
+    .lt-group { display: flex; gap: 4px; }
+    .lt-btn {
+      flex: 1; padding: 6px 4px; font-size: 11px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-dim); border-radius: 4px; cursor: pointer;
+      transition: all 0.12s;
+    }
+    .lt-btn.active { background: var(--border); color: var(--text); border-color: var(--accent); }
+
+    /* Selected line panel */
+    #line-panel { font-size: 12px; }
+    #no-line-selected { color: var(--text-dim); font-size: 12px; }
+    #line-selected { display: none; }
+    #sel-line-type { color: var(--text-dim); font-size: 11px; margin-bottom: 8px; }
+    .line-actions { display: flex; flex-direction: column; gap: 5px; }
+
+    /* ── CONTENT ── */
+    #content-area {
+      flex: 1;
+      overflow: hidden;
+      background: #e8e4de;
+    }
+
+    #scroll-container {
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #script-page {
+      background: var(--script-bg);
+      min-height: 100%;
+      padding: 32px 24px 64px;
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      width: max-content;
+      min-width: 100%;
+    }
+
+    /* ── SCRIPT TEXT ── */
+    #script-content {
+      width: 580px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12pt;
+      line-height: 1.5;
+      color: var(--script-text);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .elem {
+      padding: 1px 4px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: background 0.1s;
+      user-select: none;
+    }
+
+    .elem:hover { background: rgba(52,152,219,0.12); }
+    .elem-selecting { background: rgba(52,152,219,0.25) !important; outline: 2px solid #3498db; border-radius: 3px; }
+
+    .elem-scene {
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-top: 20px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid #bbb;
+      padding-bottom: 3px;
+    }
+
+    .scene-num {
+      display: inline-block;
+      min-width: 30px;
+      color: #888;
+      font-size: 10pt;
+      font-weight: normal;
+    }
+
+    .elem-action { margin-bottom: 5px; }
+
+    .elem-character {
+      padding-left: 200px;
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+
+    .elem-dialogue {
+      padding-left: 110px;
+      padding-right: 110px;
+      margin-bottom: 4px;
+    }
+
+    .elem-paren {
+      padding-left: 145px;
+      padding-right: 145px;
+      color: #444;
+    }
+
+    .elem-transition {
+      text-align: right;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .elem-other { color: #666; }
+
+    /* ── TRAMLINE PANEL ── */
+    #tram-panel {
+      flex-shrink: 0;
+      min-width: 40px;
+      margin-left: 6px;
+      padding-top: 0;
+      align-self: stretch;
+    }
+
+    #tram-svg { display: block; }
+
+    /* ── EMPTY STATE ── */
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 16px;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 32px;
+    }
+
+    #empty-state h2 { font-size: 22px; color: var(--text); }
+    #empty-state p { font-size: 14px; max-width: 300px; line-height: 1.6; }
+
+    .empty-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
+    /* ── BUTTONS ── */
+    button {
+      padding: 7px 13px;
+      border: none; border-radius: 5px; cursor: pointer;
+      font-size: 13px; font-family: inherit;
+      background: var(--border); color: var(--text);
+      transition: background 0.12s, transform 0.08s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active { transform: scale(0.96); }
+    button:hover { background: #1a5276; }
+
+    .btn-primary { background: var(--accent); }
+    .btn-primary:hover { background: #2980b9; }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-xs { padding: 3px 7px; font-size: 11px; }
+    .btn-secondary { background: rgba(255,255,255,0.08); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+    .btn-ghost { background: transparent; padding: 2px 5px; font-size: 10px; }
+    .btn-ghost:hover { background: rgba(255,0,0,0.2); }
+    .btn-full { width: 100%; }
+    button.active { background: var(--accent); color: #fff; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.82);
+      color: #fff;
+      padding: 9px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 9999;
+      white-space: nowrap;
+      backdrop-filter: blur(4px);
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── LINE POPUP ── */
+    #line-popup {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      background: #1e2a3a;
+      border: 1px solid #3498db;
+      border-radius: 10px;
+      padding: 10px;
+      min-width: 170px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    #popup-label {
+      font-size: 11px;
+      color: #aaa;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    .popup-actions { display: flex; flex-direction: column; gap: 5px; }
+
+    .popup-btn {
+      width: 100%; padding: 8px 10px; font-size: 13px;
+      background: #0f3460; color: var(--text);
+      border-radius: 6px; text-align: left;
+    }
+    .popup-btn:hover { background: #1a5276; }
+    .popup-btn.popup-danger { background: #5c1a16; }
+    .popup-btn.popup-danger:hover { background: #922b21; }
+    .popup-btn.active { background: #2471a3; }
+
+    /* ── PRINT / PDF EXPORT ── */
+    @page { margin: 0; }
+
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+      body { background: white; overflow: visible; height: auto; }
+
+      #toolbar, #sidebar, #toast, #line-popup, #empty-state { display: none !important; }
+
+      #app, #main, #content-area { display: block; height: auto; overflow: visible; }
+
+      #scroll-container {
+        height: auto; overflow: visible;
+        padding: 0;
+      }
+
+      #script-page {
+        padding: 12mm 16mm;
+        width: auto; min-width: 0;
+        background: white;
+      }
+
+      #script-content { width: 140mm; font-size: 10pt; }
+
+      .elem-character { padding-left: 52mm; }
+      .elem-dialogue  { padding-left: 28mm; padding-right: 28mm; }
+      .elem-paren     { padding-left: 36mm; padding-right: 36mm; }
+
+      /* Keep tramline SVG colours */
+      #tram-panel, #tram-svg { display: block !important; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      #sidebar { width: 180px; }
+      #sidebar-inner { width: 180px; }
+      #script-content { width: 420px; font-size: 10pt; }
+      .elem-character { padding-left: 140px; }
+      .elem-dialogue { padding-left: 70px; padding-right: 70px; }
+      .elem-paren { padding-left: 90px; padding-right: 90px; }
+      #script-title { display: none; }
+    }
+
+    @media (max-width: 400px) {
+      #sidebar { width: 0; opacity: 0; pointer-events: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOOLBAR -->
+  <header id="toolbar">
+    <button id="btn-menu" class="btn-secondary" title="Toggle sidebar" style="padding:7px 10px; font-size:16px;">☰</button>
+    <div class="tb-group">
+      <button id="btn-import" class="btn-primary">Import .fdx</button>
+      <button id="btn-demo" class="btn-secondary">Demo</button>
+    </div>
+    <span id="script-title">No script loaded</span>
+    <div class="tb-spacer"></div>
+    <span id="save-indicator"></span>
+    <div class="tb-group">
+      <button id="btn-export-pdf" class="btn-secondary">Export PDF</button>
+      <button id="btn-export" class="btn-secondary">Export JSON</button>
+      <button id="btn-import-ann" class="btn-secondary">Import Lining</button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <div id="sidebar-inner">
+
+        <!-- Slates -->
+        <div class="sidebar-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span class="section-label">Slates</span>
+            <button id="btn-add-slate" class="btn-xs btn-primary">+ Add Slate</button>
+          </div>
+        </div>
+        <div id="slates-scroll">
+          <div id="slates-list"></div>
+        </div>
+
+        <!-- Line type -->
+        <div class="sidebar-section">
+          <div class="section-label">Line Type</div>
+          <div class="lt-group">
+            <button class="lt-btn" data-type="straight">— Straight</button>
+            <button class="lt-btn active" data-type="squiggly">≈ Squiggly</button>
+          </div>
+        </div>
+
+        <!-- Selected line -->
+        <div class="sidebar-section" id="line-panel">
+          <div class="section-label">Selected Line</div>
+          <div id="no-line-selected">Tap a tramline to select it</div>
+          <div id="line-selected">
+            <div id="sel-line-type"></div>
+            <div class="line-actions">
+              <button id="btn-toggle-type" class="btn-full btn-secondary">Toggle Straight/Squiggly</button>
+              <button id="btn-extend-start" class="btn-full btn-secondary">Move Start Point</button>
+              <button id="btn-extend-end" class="btn-full btn-secondary">Move End Point</button>
+              <button id="btn-delete-line" class="btn-full btn-danger">Delete Line</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <div id="content-area">
+
+      <!-- Empty state -->
+      <div id="empty-state">
+        <h2>Script Liner</h2>
+        <p>Import a Final Draft script (.fdx) to start lining, or try the demo to explore the tool.</p>
+        <div class="empty-actions">
+          <button class="btn-primary" onclick="document.getElementById('fdx-input').click()">Import .fdx Script</button>
+          <button class="btn-secondary" onclick="document.getElementById('btn-demo').click()">Load Demo</button>
+        </div>
+      </div>
+
+      <!-- Script + tramlines (hidden until loaded) -->
+      <div id="scroll-container" style="display:none">
+        <div id="script-page">
+          <div id="script-content"></div>
+          <div id="tram-panel">
+            <svg id="tram-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="fdx-input" accept=".fdx,.xml" style="display:none">
+<input type="file" id="ann-input" accept=".json" style="display:none">
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Line context popup -->
+<div id="line-popup">
+  <div id="popup-label"></div>
+  <div class="popup-actions">
+    <button class="popup-btn" id="popup-move-start">↑ Move Start</button>
+    <button class="popup-btn" id="popup-move-end">↓ Move End</button>
+    <button class="popup-btn" id="popup-toggle-type">⇄ Toggle Type</button>
+    <button class="popup-btn popup-danger" id="popup-delete">✕ Delete</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
