@@ -3,7 +3,7 @@
 enum Config {
     // Base URL where you host the scriptliner folder.
     // Must end with a slash. Files expected: index.html, app.js, version.json
-    static let updateBaseURL = "https://yoursite.com/scriptliner/"
+    static let updateBaseURL = "https://www.fantastic.kiwi/scriptliner/"
 
     // Files to download on update (sw.js not needed in native)
     static let updateFiles = ["index.html", "app.js"]
