@@ -873,9 +873,8 @@ async function init() {
     showToast('Session restored');
   }
 
-  // Import FDX
-  document.getElementById('btn-import').addEventListener('click', () => document.getElementById('fdx-input').click());
-  document.getElementById('fdx-input').addEventListener('change', e => {
+  // Import FDX — handles both toolbar input and empty-state input
+  function handleFdxFile(e) {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
@@ -893,7 +892,10 @@ async function init() {
     };
     reader.readAsText(file);
     e.target.value = '';
-  });
+  }
+  document.getElementById('fdx-input').addEventListener('change', handleFdxFile);
+  const fdxEmpty = document.getElementById('fdx-input-empty');
+  if (fdxEmpty) fdxEmpty.addEventListener('change', handleFdxFile);
 
   // Demo
   document.getElementById('btn-demo').addEventListener('click', () => {
@@ -976,7 +978,6 @@ async function init() {
 
   // Export / Import annotations
   document.getElementById('btn-export').addEventListener('click', exportAnnotations);
-  document.getElementById('btn-import-ann').addEventListener('click', () => document.getElementById('ann-input').click());
   document.getElementById('ann-input').addEventListener('change', e => {
     const file = e.target.files[0]; if (file) importAnnotations(file); e.target.value = '';
   });
